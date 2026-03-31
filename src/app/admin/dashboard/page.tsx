@@ -221,20 +221,21 @@ export default function AdminDashboard() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl font-bold">Image Feedback — Admin</h1>
-          <p className="text-gray-500 text-sm">
+          <p className="text-stone-500 text-sm">
             {images.length} images · {voters.length} voters · {totalVotes} total votes
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowUpload(true)}
-            className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-sm font-medium transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 active:scale-[0.98] text-white hover:shadow-lg hover:shadow-amber-900/20"
+            style={{ background: 'linear-gradient(135deg, #dc5b0e, #eb7517)' }}
           >
             + Upload Images
           </button>
           <button
             onClick={handleExportCsv}
-            className="px-4 py-2 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 text-sm transition-colors"
+            className="px-4 py-2 rounded-lg border border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-700 text-sm transition-colors"
           >
             Export CSV
           </button>
@@ -242,15 +243,15 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 mb-6 border-b border-gray-800">
+      <div className="flex gap-0 mb-6 border-b border-stone-800">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 ${
               tab === t.key
-                ? 'text-gray-100 border-purple-500'
-                : 'text-gray-500 border-transparent hover:text-gray-300'
+                ? 'text-stone-100 border-amber-500'
+                : 'text-stone-500 border-transparent hover:text-stone-300'
             }`}
           >
             {t.label} ({t.count})
@@ -262,8 +263,8 @@ export default function AdminDashboard() {
       {tab === 'images' && (
         <>
           {/* Filter Bar */}
-          <div className="flex items-center gap-3 mb-4 p-3 bg-gray-900 rounded-lg">
-            <span className="text-gray-500 text-xs uppercase tracking-wider">Filter:</span>
+          <div className="flex items-center gap-3 mb-4 p-3 bg-stone-900 rounded-lg">
+            <span className="text-stone-500 text-xs uppercase tracking-wider">Filter:</span>
             <div className="flex gap-2">
               {filters.map((f) => (
                 <button
@@ -271,8 +272,8 @@ export default function AdminDashboard() {
                   onClick={() => setFilter(f.key)}
                   className={`px-3 py-1 rounded-full text-xs transition-colors ${
                     filter === f.key
-                      ? 'bg-gray-700 text-gray-100'
-                      : 'border border-gray-700 text-gray-500 hover:text-gray-300'
+                      ? 'bg-stone-700 text-stone-100'
+                      : 'border border-stone-700 text-stone-500 hover:text-stone-300'
                   }`}
                 >
                   {f.label}
@@ -280,20 +281,21 @@ export default function AdminDashboard() {
               ))}
             </div>
             <div className="flex-1" />
-            <span className="text-gray-500 text-xs">
+            <span className="text-stone-500 text-xs">
               Showing {sorted.length} of {images.length}
             </span>
           </div>
 
           {/* Bulk Actions */}
           {selected.size > 0 && (
-            <div className="flex items-center gap-3 mb-3 p-3 bg-purple-950/30 border border-purple-500/20 rounded-lg">
-              <span className="text-purple-200 text-sm">{selected.size} selected</span>
+            <div className="flex items-center gap-3 mb-3 p-3 bg-amber-950/30 border border-amber-500/20 rounded-lg">
+              <span className="text-amber-200 text-sm">{selected.size} selected</span>
               <button
                 onClick={handleBulkDownload}
-                className="px-3 py-1 rounded-lg bg-purple-600 text-white text-xs font-medium"
+                className="px-3 py-1 rounded-lg text-white text-xs font-medium"
+                style={{ background: 'linear-gradient(135deg, #dc5b0e, #eb7517)' }}
               >
-                ⬇ Download
+                Download
               </button>
               <button
                 onClick={handleBulkReset}
@@ -311,16 +313,16 @@ export default function AdminDashboard() {
           )}
 
           {/* Images Table */}
-          <div className="border border-gray-800 rounded-lg overflow-hidden">
+          <div className="border border-stone-800 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-900 text-gray-500 uppercase text-xs tracking-wider">
+                <tr className="bg-stone-900 text-stone-500 uppercase text-xs tracking-wider">
                   <th className="p-3 text-left w-8">
                     <input
                       type="checkbox"
                       checked={selected.size === sorted.length && sorted.length > 0}
                       onChange={toggleSelectAll}
-                      className="accent-purple-600"
+                      className="accent-amber-600"
                     />
                   </th>
                   <th className="p-3 text-left">Image</th>
@@ -329,7 +331,7 @@ export default function AdminDashboard() {
                   <th className="p-3 text-center">Rejected</th>
                   <th className="p-3 text-center">Total</th>
                   <th
-                    className="p-3 text-center cursor-pointer hover:text-gray-300"
+                    className="p-3 text-center cursor-pointer hover:text-stone-300"
                     onClick={() => setSortAsc(!sortAsc)}
                   >
                     Approval % {sortAsc ? '↑' : '↓'}
@@ -341,8 +343,8 @@ export default function AdminDashboard() {
                 {sorted.map((img) => (
                   <tr
                     key={img.id}
-                    className={`border-t border-gray-800 ${
-                      selected.has(img.id) ? 'bg-gray-900/50' : ''
+                    className={`border-t border-stone-800 transition-colors ${
+                      selected.has(img.id) ? 'bg-stone-900/50' : ''
                     }`}
                   >
                     <td className="p-3">
@@ -350,11 +352,11 @@ export default function AdminDashboard() {
                         type="checkbox"
                         checked={selected.has(img.id)}
                         onChange={() => toggleSelect(img.id)}
-                        className="accent-purple-600"
+                        className="accent-amber-600"
                       />
                     </td>
                     <td className="p-3">
-                      <div className="w-12 h-9 relative rounded overflow-hidden bg-gray-800">
+                      <div className="w-12 h-9 relative rounded overflow-hidden bg-stone-800">
                         <Image
                           src={`${img.url}?width=96&quality=60`}
                           alt={img.filename}
@@ -365,8 +367,8 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </td>
-                    <td className="p-3 text-gray-300">{img.filename}</td>
-                    <td className="p-3 text-center text-green-500 font-semibold">{img.approved}</td>
+                    <td className="p-3 text-stone-300">{img.filename}</td>
+                    <td className="p-3 text-center text-emerald-500 font-semibold">{img.approved}</td>
                     <td className="p-3 text-center text-red-500 font-semibold">{img.rejected}</td>
                     <td className="p-3 text-center">{img.total}</td>
                     <td className="p-3 text-center">
@@ -374,20 +376,20 @@ export default function AdminDashboard() {
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs ${
                             img.approvalPct >= 60
-                              ? 'bg-green-900/40 text-green-400'
+                              ? 'bg-emerald-900/40 text-emerald-400'
                               : 'bg-red-900/40 text-red-400'
                           }`}
                         >
                           {img.approvalPct}%
                         </span>
                       ) : (
-                        <span className="text-gray-600">—</span>
+                        <span className="text-stone-600">—</span>
                       )}
                     </td>
                     <td className="p-3 text-right space-x-2">
                       <button
                         onClick={() => handleReset(img.id)}
-                        className="text-gray-500 hover:text-gray-300 text-xs"
+                        className="text-stone-500 hover:text-stone-300 text-xs"
                       >
                         Reset
                       </button>
@@ -408,13 +410,13 @@ export default function AdminDashboard() {
 
       {/* Voters Tab */}
       {tab === 'voters' && (
-        <div className="border border-gray-800 rounded-lg overflow-hidden">
+        <div className="border border-stone-800 rounded-lg overflow-hidden">
           {voters.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">No votes yet</div>
+            <div className="p-12 text-center text-stone-500">No votes yet</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-900 text-gray-500 uppercase text-xs tracking-wider">
+                <tr className="bg-stone-900 text-stone-500 uppercase text-xs tracking-wider">
                   <th className="p-3 text-left">Voter</th>
                   <th className="p-3 text-center">Approved</th>
                   <th className="p-3 text-center">Rejected</th>
@@ -425,9 +427,9 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {voters.map((v) => (
-                  <tr key={v.name} className="border-t border-gray-800">
-                    <td className="p-3 font-medium text-gray-200">{v.name}</td>
-                    <td className="p-3 text-center text-green-500 font-semibold">{v.approved}</td>
+                  <tr key={v.name} className="border-t border-stone-800">
+                    <td className="p-3 font-medium text-stone-200">{v.name}</td>
+                    <td className="p-3 text-center text-emerald-500 font-semibold">{v.approved}</td>
                     <td className="p-3 text-center text-red-500 font-semibold">{v.rejected}</td>
                     <td className="p-3 text-center">{v.total}</td>
                     <td className="p-3 text-center">
@@ -435,21 +437,21 @@ export default function AdminDashboard() {
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs ${
                             v.approvalRate >= 60
-                              ? 'bg-green-900/40 text-green-400'
+                              ? 'bg-emerald-900/40 text-emerald-400'
                               : 'bg-red-900/40 text-red-400'
                           }`}
                         >
                           {v.approvalRate}%
                         </span>
                       ) : (
-                        <span className="text-gray-600">—</span>
+                        <span className="text-stone-600">—</span>
                       )}
                     </td>
                     <td className="p-3 text-center">
                       {v.total >= v.totalImages ? (
-                        <span className="text-green-400 text-xs">{v.total}/{v.totalImages} ✓</span>
+                        <span className="text-emerald-400 text-xs">{v.total}/{v.totalImages} ✓</span>
                       ) : (
-                        <span className="text-yellow-500 text-xs">{v.total}/{v.totalImages}</span>
+                        <span className="text-amber-500 text-xs">{v.total}/{v.totalImages}</span>
                       )}
                     </td>
                   </tr>
@@ -464,21 +466,21 @@ export default function AdminDashboard() {
       {tab === 'disagreements' && (
         <div>
           {disagreements.length === 0 ? (
-            <div className="p-12 text-center text-gray-500 border border-gray-800 rounded-lg">
+            <div className="p-12 text-center text-stone-500 border border-stone-800 rounded-lg">
               No disagreements yet — need at least 2 voters on an image with different votes
             </div>
           ) : (
             <>
-              <p className="text-gray-500 text-sm mb-4">
+              <p className="text-stone-500 text-sm mb-4">
                 Images sorted by disagreement — most contested first
               </p>
               <div className="flex flex-col gap-3">
                 {disagreements.map((d) => (
                   <div
                     key={d.imageId}
-                    className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4 items-center"
+                    className="bg-stone-900 border border-stone-800 rounded-lg p-4 flex gap-4 items-center"
                   >
-                    <div className="w-20 h-15 relative rounded overflow-hidden bg-gray-800 flex-shrink-0">
+                    <div className="w-20 h-15 relative rounded overflow-hidden bg-stone-800 flex-shrink-0">
                       <Image
                         src={`${d.url}?width=160&quality=60`}
                         alt={d.filename}
@@ -490,8 +492,8 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-200 font-medium truncate">{d.filename}</span>
-                        <span className="ml-2 flex-shrink-0 bg-purple-900/40 text-purple-300 px-2.5 py-0.5 rounded-full text-xs">
+                        <span className="text-stone-200 font-medium truncate">{d.filename}</span>
+                        <span className="ml-2 flex-shrink-0 bg-amber-900/40 text-amber-300 px-2.5 py-0.5 rounded-full text-xs">
                           {splitLabel(d.approves, d.rejects)}
                         </span>
                       </div>
@@ -501,7 +503,7 @@ export default function AdminDashboard() {
                             key={i}
                             className={`text-xs px-2 py-0.5 rounded ${
                               vote.vote === 'approve'
-                                ? 'bg-green-900/40 text-green-400'
+                                ? 'bg-emerald-900/40 text-emerald-400'
                                 : 'bg-red-900/40 text-red-400'
                             }`}
                           >
@@ -520,19 +522,20 @@ export default function AdminDashboard() {
 
       {/* Upload Modal */}
       {showUpload && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 w-full max-w-md animate-fade-up">
             <h2 className="text-lg font-bold mb-4">Upload Images</h2>
             <div
               onDragOver={handleDragOver}
               onDrop={handleDrop}
-              className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center mb-4 hover:border-purple-500 transition-colors"
+              className="border-2 border-dashed border-stone-700 rounded-lg p-8 text-center mb-4 hover:border-amber-500 transition-colors"
             >
-              <p className="text-gray-400 mb-2">Drag & drop images here</p>
-              <p className="text-gray-600 text-sm mb-4">or</p>
+              <p className="text-stone-400 mb-2">Drag & drop images here</p>
+              <p className="text-stone-600 text-sm mb-4">or</p>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all text-white"
+                style={{ background: 'linear-gradient(135deg, #dc5b0e, #eb7517)' }}
               >
                 Choose Files
               </button>
@@ -545,10 +548,10 @@ export default function AdminDashboard() {
                 onChange={(e) => e.target.files && handleUpload(e.target.files)}
               />
             </div>
-            {uploading && <p className="text-purple-400 text-sm mb-4">{uploadProgress}</p>}
+            {uploading && <p className="text-amber-400 text-sm mb-4">{uploadProgress}</p>}
             <button
               onClick={() => setShowUpload(false)}
-              className="w-full px-4 py-2 border border-gray-700 rounded-lg text-gray-400 hover:text-gray-200 text-sm transition-colors"
+              className="w-full px-4 py-2 border border-stone-700 rounded-lg text-stone-400 hover:text-stone-200 text-sm transition-colors"
             >
               Cancel
             </button>

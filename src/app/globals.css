@@ -1,6 +1,128 @@
 @import "tailwindcss";
 
+:root {
+  --amber-50: #fef7ed;
+  --amber-100: #fdecd4;
+  --amber-200: #f9d5a8;
+  --amber-300: #f5b571;
+  --amber-400: #ef8c38;
+  --amber-500: #eb7517;
+  --amber-600: #dc5b0e;
+  --amber-700: #b6430e;
+  --amber-800: #913514;
+  --amber-900: #762e14;
+  --amber-950: #401407;
+}
+
 body {
-  background-color: #030712;
-  color: #f3f4f6;
+  background-color: #0c0a09;
+  color: #fafaf9;
+}
+
+/* Vote card animations */
+@keyframes card-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes card-exit-left {
+  0% {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-120%) rotate(-8deg);
+  }
+}
+
+@keyframes card-exit-right {
+  0% {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(120%) rotate(8deg);
+  }
+}
+
+.card-enter {
+  animation: card-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.card-exit-left {
+  animation: card-exit-left 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+.card-exit-right {
+  animation: card-exit-right 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+/* Button press effect */
+@keyframes btn-press {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+.btn-press {
+  animation: btn-press 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Shimmer effect for submitting state */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.btn-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Progress bar animation */
+@keyframes progress-fill {
+  from { transform: scaleX(var(--progress-from, 0)); }
+  to { transform: scaleX(var(--progress-to, 0)); }
+}
+
+/* Skeleton loader */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.15; }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Stagger children */
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+/* Subtle glow for accent elements */
+.amber-glow {
+  box-shadow: 0 0 20px rgba(235, 117, 23, 0.15), 0 0 60px rgba(235, 117, 23, 0.05);
 }
