@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { getNextImages } from '@/lib/queries/images'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -28,5 +29,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true })
+  // Return next images so the client doesn't need a separate GET
+  const result = await getNextImages(supabase, voter_name.trim())
+
+  if ('error' in result) {
+    // Vote succeeded but fetching next images failed — still return success
+    return NextResponse.json({ success: true })
+  }
+
+  return NextResponse.json({ success: true, ...result })
 }

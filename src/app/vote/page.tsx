@@ -65,17 +65,59 @@ export default function VotePage() {
   async function handleVote(vote: 'approve' | 'reject') {
     if (!image || !voterName || submitting) return
     setSubmitting(true)
-    await fetch('/api/vote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image_id: image.id,
-        voter_name: voterName,
-        vote,
-      }),
+
+    const prevImage = image
+    const prevNextImage = nextImage
+    const prevRemaining = remaining
+
+    const voteBody = JSON.stringify({
+      image_id: image.id,
+      voter_name: voterName,
+      vote,
     })
+
+    if (nextImage) {
+      // Optimistic: show prefetched image instantly
+      setFadeIn(false)
+      setImage(nextImage)
+      setNextImage(null)
+      setRemaining((r) => r - 1)
+      requestAnimationFrame(() => setFadeIn(true))
+
+      try {
+        // Fire vote — response includes next images
+        const res = await fetch('/api/vote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: voteBody,
+        })
+        if (!res.ok) throw new Error('Vote failed')
+        const data = await res.json()
+        if (data.nextImage) setNextImage(data.nextImage)
+        if (data.remaining != null) setRemaining(data.remaining)
+        if (data.total != null) setTotal(data.total)
+      } catch {
+        // Roll back optimistic update on failure
+        setImage(prevImage)
+        setNextImage(prevNextImage)
+        setRemaining(prevRemaining)
+      }
+    } else {
+      // Last image — await vote then redirect
+      try {
+        const res = await fetch('/api/vote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: voteBody,
+        })
+        if (!res.ok) throw new Error('Vote failed')
+        router.push('/done')
+        return
+      } catch {
+        // Stay on page so user can retry
+      }
+    }
     setSubmitting(false)
-    fetchNextImage(voterName)
   }
 
   if (!voterName || loading) {
