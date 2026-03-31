@@ -16,9 +16,10 @@ export async function GET() {
     date: v.created_at,
   }))
 
+  const esc = (s: string) => s.replace(/"/g, '""')
   const header = 'image_filename,voter_name,vote,voted_at'
   const csvRows = rows.map(
-    (r) => `"${r.image}","${r.voter}","${r.vote}","${r.date}"`
+    (r) => `"${esc(r.image)}","${esc(r.voter)}","${esc(r.vote)}","${esc(r.date)}"`
   )
   const csv = [header, ...csvRows].join('\n')
 

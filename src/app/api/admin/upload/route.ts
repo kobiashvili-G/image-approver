@@ -10,30 +10,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No files provided' }, { status: 400 })
   }
 
-  let uploaded = 0
+  const results = await Promise.all(
+    files.map(async (file) => {
+      const ext = file.name.split('.').pop()
+      const storagePath = `${crypto.randomUUID()}.${ext}`
 
-  for (const file of files) {
-    const ext = file.name.split('.').pop()
-    const storagePath = `${crypto.randomUUID()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(storagePath, file)
 
-    const { error: uploadError } = await supabase.storage
-      .from('images')
-      .upload(storagePath, file)
+      if (uploadError) return false
 
-    if (uploadError) continue
+      const { data: urlData } = supabase.storage
+        .from('images')
+        .getPublicUrl(storagePath)
 
-    const { data: urlData } = supabase.storage
-      .from('images')
-      .getPublicUrl(storagePath)
+      await supabase.from('images').insert({
+        filename: file.name,
+        storage_path: storagePath,
+        url: urlData.publicUrl,
+      })
 
-    await supabase.from('images').insert({
-      filename: file.name,
-      storage_path: storagePath,
-      url: urlData.publicUrl,
+      return true
     })
+  )
 
-    uploaded++
-  }
-
-  return NextResponse.json({ uploaded })
+  return NextResponse.json({ uploaded: results.filter(Boolean).length })
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
@@ -42,12 +42,14 @@ export default function VotePage() {
     requestAnimationFrame(() => setFadeIn(true))
   }, [router])
 
-  // Prefetch next image in the background
+  const prefetchRef = useRef<HTMLImageElement | null>(null)
   useEffect(() => {
     if (nextImage) {
       const img = new window.Image()
       img.src = optimizedUrl(nextImage.url)
+      prefetchRef.current = img
     }
+    return () => { prefetchRef.current = null }
   }, [nextImage])
 
   useEffect(() => {

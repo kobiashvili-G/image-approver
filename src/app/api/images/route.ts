@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Get all image IDs this voter has already voted on
   const { data: votedRows } = await supabase
     .from('votes')
     .select('image_id')
@@ -17,12 +16,10 @@ export async function GET(request: NextRequest) {
 
   const votedIds = (votedRows ?? []).map((r) => r.image_id)
 
-  // Get total images count
   const { count: total } = await supabase
     .from('images')
     .select('*', { count: 'exact', head: true })
 
-  // Get next 2 unvoted images (current + prefetch)
   let query = supabase.from('images').select('id, url').limit(2)
   if (votedIds.length > 0) {
     query = query.not('id', 'in', `(${votedIds.join(',')})`)

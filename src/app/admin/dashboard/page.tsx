@@ -48,7 +48,6 @@ export default function AdminDashboard() {
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const dropRef = useRef<HTMLDivElement>(null)
 
   const fetchImages = useCallback(async () => {
     const res = await fetch('/api/admin/images')
@@ -67,13 +66,6 @@ export default function AdminDashboard() {
     fetchImages()
     fetchVoterData()
   }, [fetchImages, fetchVoterData])
-
-  // Refetch voter data when switching to those tabs
-  useEffect(() => {
-    if (tab === 'voters' || tab === 'disagreements') {
-      fetchVoterData()
-    }
-  }, [tab, fetchVoterData])
 
   const filtered = images.filter((img) => {
     if (filter === 'all') return true
@@ -219,9 +211,8 @@ export default function AdminDashboard() {
     { key: 'disagreements', label: 'Disagreements', count: disagreements.length },
   ]
 
-  function splitLabel(score: number) {
-    const pct = Math.round(score * 100)
-    return `${50 + pct}/${50 - pct} split`
+  function splitLabel(approves: number, rejects: number) {
+    return `${approves}/${rejects} split`
   }
 
   return (
@@ -499,7 +490,7 @@ export default function AdminDashboard() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-gray-200 font-medium truncate">{d.filename}</span>
                         <span className="ml-2 flex-shrink-0 bg-purple-900/40 text-purple-300 px-2.5 py-0.5 rounded-full text-xs">
-                          {splitLabel(d.disagreementScore)}
+                          {splitLabel(d.approves, d.rejects)}
                         </span>
                       </div>
                       <div className="flex gap-2 flex-wrap">
@@ -531,7 +522,6 @@ export default function AdminDashboard() {
           <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md">
             <h2 className="text-lg font-bold mb-4">Upload Images</h2>
             <div
-              ref={dropRef}
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center mb-4 hover:border-purple-500 transition-colors"

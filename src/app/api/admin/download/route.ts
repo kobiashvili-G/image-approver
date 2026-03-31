@@ -22,14 +22,19 @@ export async function POST(request: NextRequest) {
 
   const zip = new JSZip()
 
-  for (const img of images) {
-    const { data } = await supabase.storage
-      .from('images')
-      .download(img.storage_path)
+  const downloads = await Promise.all(
+    images.map(async (img) => {
+      const { data } = await supabase.storage
+        .from('images')
+        .download(img.storage_path)
+      return data ? { filename: img.filename, data } : null
+    })
+  )
 
-    if (data) {
-      const buffer = await data.arrayBuffer()
-      zip.file(img.filename, buffer)
+  for (const dl of downloads) {
+    if (dl) {
+      const buffer = await dl.data.arrayBuffer()
+      zip.file(dl.filename, buffer)
     }
   }
 
