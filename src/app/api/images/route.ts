@@ -22,15 +22,16 @@ export async function GET(request: NextRequest) {
     .from('images')
     .select('*', { count: 'exact', head: true })
 
-  // Get next unvoted image
-  let query = supabase.from('images').select('id, url').limit(1)
+  // Get next 2 unvoted images (current + prefetch)
+  let query = supabase.from('images').select('id, url').limit(2)
   if (votedIds.length > 0) {
     query = query.not('id', 'in', `(${votedIds.join(',')})`)
   }
   const { data: images } = await query
 
   const image = images && images.length > 0 ? images[0] : null
+  const nextImage = images && images.length > 1 ? images[1] : null
   const remaining = (total ?? 0) - votedIds.length
 
-  return NextResponse.json({ image, remaining, total: total ?? 0 })
+  return NextResponse.json({ image, nextImage, remaining, total: total ?? 0 })
 }

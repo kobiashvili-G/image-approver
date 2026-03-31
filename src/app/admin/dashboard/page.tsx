@@ -291,7 +291,7 @@ export default function AdminDashboard() {
                 <td className="p-3">
                   <div className="w-12 h-9 relative rounded overflow-hidden bg-gray-800">
                     <Image
-                      src={img.url}
+                      src={`${img.url}?width=96&quality=60`}
                       alt={img.filename}
                       fill
                       className="object-cover"

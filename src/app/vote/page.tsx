@@ -9,10 +9,16 @@ interface ImageData {
   url: string
 }
 
+// Append Supabase image transform params for faster loading
+function optimizedUrl(url: string, width: number = 800) {
+  return `${url}?width=${width}&quality=75`
+}
+
 export default function VotePage() {
   const router = useRouter()
   const [voterName, setVoterName] = useState<string | null>(null)
   const [image, setImage] = useState<ImageData | null>(null)
+  const [nextImage, setNextImage] = useState<ImageData | null>(null)
   const [remaining, setRemaining] = useState(0)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -29,11 +35,20 @@ export default function VotePage() {
       return
     }
     setImage(data.image)
+    setNextImage(data.nextImage)
     setRemaining(data.remaining)
     setTotal(data.total)
     setLoading(false)
     requestAnimationFrame(() => setFadeIn(true))
   }, [router])
+
+  // Prefetch next image in the background
+  useEffect(() => {
+    if (nextImage) {
+      const img = new window.Image()
+      img.src = optimizedUrl(nextImage.url)
+    }
+  }, [nextImage])
 
   useEffect(() => {
     const name = localStorage.getItem('voterName')
@@ -85,7 +100,7 @@ export default function VotePage() {
             }`}
           >
             <Image
-              src={image.url}
+              src={optimizedUrl(image.url)}
               alt="Image to review"
               fill
               className="object-contain"
