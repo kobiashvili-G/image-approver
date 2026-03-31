@@ -13,10 +13,34 @@ interface AdminImage {
   approvalPct: number | null
 }
 
+interface Voter {
+  name: string
+  approved: number
+  rejected: number
+  total: number
+  approvalRate: number | null
+  totalImages: number
+}
+
+interface Disagreement {
+  imageId: string
+  filename: string
+  url: string
+  approves: number
+  rejects: number
+  total: number
+  disagreementScore: number
+  votes: { voter: string; vote: string }[]
+}
+
+type TabType = 'images' | 'voters' | 'disagreements'
 type FilterType = 'all' | 'gte80' | 'gte60' | 'lt50' | 'none'
 
 export default function AdminDashboard() {
+  const [tab, setTab] = useState<TabType>('images')
   const [images, setImages] = useState<AdminImage[]>([])
+  const [voters, setVoters] = useState<Voter[]>([])
+  const [disagreements, setDisagreements] = useState<Disagreement[]>([])
   const [filter, setFilter] = useState<FilterType>('all')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sortAsc, setSortAsc] = useState(false)
@@ -32,9 +56,24 @@ export default function AdminDashboard() {
     setImages(data.images)
   }, [])
 
+  const fetchVoterData = useCallback(async () => {
+    const res = await fetch('/api/admin/voters')
+    const data = await res.json()
+    setVoters(data.voters)
+    setDisagreements(data.disagreements)
+  }, [])
+
   useEffect(() => {
     fetchImages()
-  }, [fetchImages])
+    fetchVoterData()
+  }, [fetchImages, fetchVoterData])
+
+  // Refetch voter data when switching to those tabs
+  useEffect(() => {
+    if (tab === 'voters' || tab === 'disagreements') {
+      fetchVoterData()
+    }
+  }, [tab, fetchVoterData])
 
   const filtered = images.filter((img) => {
     if (filter === 'all') return true
@@ -90,6 +129,7 @@ export default function AdminDashboard() {
     })
     setSelected(new Set())
     fetchImages()
+    fetchVoterData()
   }
 
   async function handleBulkReset() {
@@ -101,6 +141,7 @@ export default function AdminDashboard() {
     })
     setSelected(new Set())
     fetchImages()
+    fetchVoterData()
   }
 
   async function handleBulkDownload() {
@@ -137,6 +178,7 @@ export default function AdminDashboard() {
       body: JSON.stringify({ image_ids: [id] }),
     })
     fetchImages()
+    fetchVoterData()
   }
 
   async function handleReset(id: string) {
@@ -147,6 +189,7 @@ export default function AdminDashboard() {
       body: JSON.stringify({ image_ids: [id] }),
     })
     fetchImages()
+    fetchVoterData()
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -170,6 +213,17 @@ export default function AdminDashboard() {
     { key: 'none', label: 'No votes' },
   ]
 
+  const tabs: { key: TabType; label: string; count: number }[] = [
+    { key: 'images', label: 'Images', count: images.length },
+    { key: 'voters', label: 'Voters', count: voters.length },
+    { key: 'disagreements', label: 'Disagreements', count: disagreements.length },
+  ]
+
+  function splitLabel(score: number) {
+    const pct = Math.round(score * 100)
+    return `${50 + pct}/${50 - pct} split`
+  }
+
   return (
     <main className="min-h-screen p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -177,7 +231,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-xl font-bold">Image Feedback — Admin</h1>
           <p className="text-gray-500 text-sm">
-            {images.length} images · {totalVotes} total votes
+            {images.length} images · {voters.length} voters · {totalVotes} total votes
           </p>
         </div>
         <div className="flex gap-2">
@@ -196,147 +250,280 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="flex items-center gap-3 mb-4 p-3 bg-gray-900 rounded-lg">
-        <span className="text-gray-500 text-xs uppercase tracking-wider">Filter:</span>
-        <div className="flex gap-2">
-          {filters.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`px-3 py-1 rounded-full text-xs transition-colors ${
-                filter === f.key
-                  ? 'bg-gray-700 text-gray-100'
-                  : 'border border-gray-700 text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1" />
-        <span className="text-gray-500 text-xs">
-          Showing {sorted.length} of {images.length}
-        </span>
+      {/* Tabs */}
+      <div className="flex gap-0 mb-6 border-b border-gray-800">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 ${
+              tab === t.key
+                ? 'text-gray-100 border-purple-500'
+                : 'text-gray-500 border-transparent hover:text-gray-300'
+            }`}
+          >
+            {t.label} ({t.count})
+          </button>
+        ))}
       </div>
 
-      {/* Bulk Actions */}
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-3 p-3 bg-purple-950/30 border border-purple-500/20 rounded-lg">
-          <span className="text-purple-200 text-sm">{selected.size} selected</span>
-          <button
-            onClick={handleBulkDownload}
-            className="px-3 py-1 rounded-lg bg-purple-600 text-white text-xs font-medium"
-          >
-            ⬇ Download
-          </button>
-          <button
-            onClick={handleBulkReset}
-            className="px-3 py-1 rounded-lg border border-red-500/30 text-red-400 text-xs"
-          >
-            Reset Votes
-          </button>
-          <button
-            onClick={handleBulkDelete}
-            className="px-3 py-1 rounded-lg border border-red-500/30 text-red-400 text-xs"
-          >
-            Delete
-          </button>
+      {/* Images Tab */}
+      {tab === 'images' && (
+        <>
+          {/* Filter Bar */}
+          <div className="flex items-center gap-3 mb-4 p-3 bg-gray-900 rounded-lg">
+            <span className="text-gray-500 text-xs uppercase tracking-wider">Filter:</span>
+            <div className="flex gap-2">
+              {filters.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                    filter === f.key
+                      ? 'bg-gray-700 text-gray-100'
+                      : 'border border-gray-700 text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1" />
+            <span className="text-gray-500 text-xs">
+              Showing {sorted.length} of {images.length}
+            </span>
+          </div>
+
+          {/* Bulk Actions */}
+          {selected.size > 0 && (
+            <div className="flex items-center gap-3 mb-3 p-3 bg-purple-950/30 border border-purple-500/20 rounded-lg">
+              <span className="text-purple-200 text-sm">{selected.size} selected</span>
+              <button
+                onClick={handleBulkDownload}
+                className="px-3 py-1 rounded-lg bg-purple-600 text-white text-xs font-medium"
+              >
+                ⬇ Download
+              </button>
+              <button
+                onClick={handleBulkReset}
+                className="px-3 py-1 rounded-lg border border-red-500/30 text-red-400 text-xs"
+              >
+                Reset Votes
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="px-3 py-1 rounded-lg border border-red-500/30 text-red-400 text-xs"
+              >
+                Delete
+              </button>
+            </div>
+          )}
+
+          {/* Images Table */}
+          <div className="border border-gray-800 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-900 text-gray-500 uppercase text-xs tracking-wider">
+                  <th className="p-3 text-left w-8">
+                    <input
+                      type="checkbox"
+                      checked={selected.size === sorted.length && sorted.length > 0}
+                      onChange={toggleSelectAll}
+                      className="accent-purple-600"
+                    />
+                  </th>
+                  <th className="p-3 text-left">Image</th>
+                  <th className="p-3 text-left">Filename</th>
+                  <th className="p-3 text-center">Approved</th>
+                  <th className="p-3 text-center">Rejected</th>
+                  <th className="p-3 text-center">Total</th>
+                  <th
+                    className="p-3 text-center cursor-pointer hover:text-gray-300"
+                    onClick={() => setSortAsc(!sortAsc)}
+                  >
+                    Approval % {sortAsc ? '↑' : '↓'}
+                  </th>
+                  <th className="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((img) => (
+                  <tr
+                    key={img.id}
+                    className={`border-t border-gray-800 ${
+                      selected.has(img.id) ? 'bg-gray-900/50' : ''
+                    }`}
+                  >
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(img.id)}
+                        onChange={() => toggleSelect(img.id)}
+                        className="accent-purple-600"
+                      />
+                    </td>
+                    <td className="p-3">
+                      <div className="w-12 h-9 relative rounded overflow-hidden bg-gray-800">
+                        <Image
+                          src={`${img.url}?width=96&quality=60`}
+                          alt={img.filename}
+                          fill
+                          className="object-cover"
+                          sizes="48px"
+                        />
+                      </div>
+                    </td>
+                    <td className="p-3 text-gray-300">{img.filename}</td>
+                    <td className="p-3 text-center text-green-500 font-semibold">{img.approved}</td>
+                    <td className="p-3 text-center text-red-500 font-semibold">{img.rejected}</td>
+                    <td className="p-3 text-center">{img.total}</td>
+                    <td className="p-3 text-center">
+                      {img.approvalPct !== null ? (
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs ${
+                            img.approvalPct >= 60
+                              ? 'bg-green-900/40 text-green-400'
+                              : 'bg-red-900/40 text-red-400'
+                          }`}
+                        >
+                          {img.approvalPct}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-600">—</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-right space-x-2">
+                      <button
+                        onClick={() => handleReset(img.id)}
+                        className="text-gray-500 hover:text-gray-300 text-xs"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => handleDelete(img.id)}
+                        className="text-red-500 hover:text-red-400 text-xs"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Voters Tab */}
+      {tab === 'voters' && (
+        <div className="border border-gray-800 rounded-lg overflow-hidden">
+          {voters.length === 0 ? (
+            <div className="p-12 text-center text-gray-500">No votes yet</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-900 text-gray-500 uppercase text-xs tracking-wider">
+                  <th className="p-3 text-left">Voter</th>
+                  <th className="p-3 text-center">Approved</th>
+                  <th className="p-3 text-center">Rejected</th>
+                  <th className="p-3 text-center">Total Votes</th>
+                  <th className="p-3 text-center">Approval Rate</th>
+                  <th className="p-3 text-center">Progress</th>
+                </tr>
+              </thead>
+              <tbody>
+                {voters.map((v) => (
+                  <tr key={v.name} className="border-t border-gray-800">
+                    <td className="p-3 font-medium text-gray-200">{v.name}</td>
+                    <td className="p-3 text-center text-green-500 font-semibold">{v.approved}</td>
+                    <td className="p-3 text-center text-red-500 font-semibold">{v.rejected}</td>
+                    <td className="p-3 text-center">{v.total}</td>
+                    <td className="p-3 text-center">
+                      {v.approvalRate !== null ? (
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs ${
+                            v.approvalRate >= 60
+                              ? 'bg-green-900/40 text-green-400'
+                              : 'bg-red-900/40 text-red-400'
+                          }`}
+                        >
+                          {v.approvalRate}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-600">—</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">
+                      {v.total >= v.totalImages ? (
+                        <span className="text-green-400 text-xs">{v.total}/{v.totalImages} ✓</span>
+                      ) : (
+                        <span className="text-yellow-500 text-xs">{v.total}/{v.totalImages}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
-      {/* Table */}
-      <div className="border border-gray-800 rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-900 text-gray-500 uppercase text-xs tracking-wider">
-              <th className="p-3 text-left w-8">
-                <input
-                  type="checkbox"
-                  checked={selected.size === sorted.length && sorted.length > 0}
-                  onChange={toggleSelectAll}
-                  className="accent-purple-600"
-                />
-              </th>
-              <th className="p-3 text-left">Image</th>
-              <th className="p-3 text-left">Filename</th>
-              <th className="p-3 text-center">Approved</th>
-              <th className="p-3 text-center">Rejected</th>
-              <th className="p-3 text-center">Total</th>
-              <th
-                className="p-3 text-center cursor-pointer hover:text-gray-300"
-                onClick={() => setSortAsc(!sortAsc)}
-              >
-                Approval % {sortAsc ? '↑' : '↓'}
-              </th>
-              <th className="p-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((img) => (
-              <tr
-                key={img.id}
-                className={`border-t border-gray-800 ${
-                  selected.has(img.id) ? 'bg-gray-900/50' : ''
-                }`}
-              >
-                <td className="p-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(img.id)}
-                    onChange={() => toggleSelect(img.id)}
-                    className="accent-purple-600"
-                  />
-                </td>
-                <td className="p-3">
-                  <div className="w-12 h-9 relative rounded overflow-hidden bg-gray-800">
-                    <Image
-                      src={`${img.url}?width=96&quality=60`}
-                      alt={img.filename}
-                      fill
-                      className="object-cover"
-                      sizes="48px"
-                    />
+      {/* Disagreements Tab */}
+      {tab === 'disagreements' && (
+        <div>
+          {disagreements.length === 0 ? (
+            <div className="p-12 text-center text-gray-500 border border-gray-800 rounded-lg">
+              No disagreements yet — need at least 2 voters on an image with different votes
+            </div>
+          ) : (
+            <>
+              <p className="text-gray-500 text-sm mb-4">
+                Images sorted by disagreement — most contested first
+              </p>
+              <div className="flex flex-col gap-3">
+                {disagreements.map((d) => (
+                  <div
+                    key={d.imageId}
+                    className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4 items-center"
+                  >
+                    <div className="w-20 h-15 relative rounded overflow-hidden bg-gray-800 flex-shrink-0">
+                      <Image
+                        src={`${d.url}?width=160&quality=60`}
+                        alt={d.filename}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-200 font-medium truncate">{d.filename}</span>
+                        <span className="ml-2 flex-shrink-0 bg-purple-900/40 text-purple-300 px-2.5 py-0.5 rounded-full text-xs">
+                          {splitLabel(d.disagreementScore)}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {d.votes.map((vote, i) => (
+                          <span
+                            key={i}
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              vote.vote === 'approve'
+                                ? 'bg-green-900/40 text-green-400'
+                                : 'bg-red-900/40 text-red-400'
+                            }`}
+                          >
+                            {vote.voter} {vote.vote === 'approve' ? '✓' : '✗'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </td>
-                <td className="p-3 text-gray-300">{img.filename}</td>
-                <td className="p-3 text-center text-green-500 font-semibold">{img.approved}</td>
-                <td className="p-3 text-center text-red-500 font-semibold">{img.rejected}</td>
-                <td className="p-3 text-center">{img.total}</td>
-                <td className="p-3 text-center">
-                  {img.approvalPct !== null ? (
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs ${
-                        img.approvalPct >= 60
-                          ? 'bg-green-900/40 text-green-400'
-                          : 'bg-red-900/40 text-red-400'
-                      }`}
-                    >
-                      {img.approvalPct}%
-                    </span>
-                  ) : (
-                    <span className="text-gray-600">—</span>
-                  )}
-                </td>
-                <td className="p-3 text-right space-x-2">
-                  <button
-                    onClick={() => handleReset(img.id)}
-                    className="text-gray-500 hover:text-gray-300 text-xs"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => handleDelete(img.id)}
-                    className="text-red-500 hover:text-red-400 text-xs"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Upload Modal */}
       {showUpload && (
