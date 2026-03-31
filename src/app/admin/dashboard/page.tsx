@@ -359,6 +359,7 @@ export default function AdminDashboard() {
                           src={`${img.url}?width=96&quality=60`}
                           alt={img.filename}
                           fill
+                          unoptimized
                           className="object-cover"
                           sizes="48px"
                         />
@@ -482,6 +483,7 @@ export default function AdminDashboard() {
                         src={`${d.url}?width=160&quality=60`}
                         alt={d.filename}
                         fill
+                        unoptimized
                         className="object-cover"
                         sizes="80px"
                       />

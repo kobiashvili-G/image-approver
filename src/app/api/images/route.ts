@@ -20,27 +20,37 @@ export async function GET(request: NextRequest) {
 
   const votedIds = (votedRows ?? []).map((r) => r.image_id)
 
-  const { count: total, error: countError } = await supabase
-    .from('images')
-    .select('*', { count: 'exact', head: true })
+  const excludeFilter = votedIds.length > 0
+    ? `(${votedIds.join(',')})`
+    : null
 
-  if (countError) {
-    return NextResponse.json({ error: 'count query failed', detail: countError.message }, { status: 500 })
+  let countQuery = supabase.from('images').select('id', { count: 'exact', head: true })
+  let imagesQuery = supabase.from('images').select('id, url').limit(2)
+  if (excludeFilter) {
+    countQuery = countQuery.not('id', 'in', excludeFilter)
+    imagesQuery = imagesQuery.not('id', 'in', excludeFilter)
   }
 
-  let query = supabase.from('images').select('id, url').limit(2)
-  if (votedIds.length > 0) {
-    query = query.not('id', 'in', `(${votedIds.join(',')})`)
+  const [totalResult, remainingResult, imagesResult] = await Promise.all([
+    supabase.from('images').select('id', { count: 'exact', head: true }),
+    countQuery,
+    imagesQuery,
+  ])
+
+  if (totalResult.error) {
+    return NextResponse.json({ error: 'total count query failed', detail: totalResult.error.message }, { status: 500 })
   }
-  const { data: images, error: imagesError } = await query
-
-  if (imagesError) {
-    return NextResponse.json({ error: 'images query failed', detail: imagesError.message }, { status: 500 })
+  if (remainingResult.error) {
+    return NextResponse.json({ error: 'remaining count query failed', detail: remainingResult.error.message }, { status: 500 })
+  }
+  if (imagesResult.error) {
+    return NextResponse.json({ error: 'images query failed', detail: imagesResult.error.message }, { status: 500 })
   }
 
-  const image = images && images.length > 0 ? images[0] : null
-  const nextImage = images && images.length > 1 ? images[1] : null
-  const remaining = (total ?? 0) - votedIds.length
+  const total = totalResult.count ?? 0
+  const remaining = remainingResult.count ?? 0
+  const image = imagesResult.data?.[0] ?? null
+  const nextImage = imagesResult.data?.[1] ?? null
 
-  return NextResponse.json({ image, nextImage, remaining, total: total ?? 0 })
+  return NextResponse.json({ image, nextImage, remaining, total })
 }

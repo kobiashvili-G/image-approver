@@ -105,6 +105,7 @@ export default function VotePage() {
               src={optimizedUrl(image.url)}
               alt="Image to review"
               fill
+              unoptimized
               className="object-contain"
               sizes="(max-width: 768px) 100vw, 672px"
               priority
