@@ -86,6 +86,7 @@ export default function AdminDashboard() {
   // Image preview state
   const [previewImg, setPreviewImg] = useState<AdminImage | null>(null)
   const [previewPos, setPreviewPos] = useState<{ x: number; y: number } | null>(null)
+  const [previewLoaded, setPreviewLoaded] = useState(false)
   const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchImages = useCallback(async () => {
@@ -169,6 +170,7 @@ export default function AdminDashboard() {
     const y = rect.top + rect.height / 2 > viewportH / 2
       ? rect.top - 200
       : rect.top - 40
+    setPreviewLoaded(false)
     setPreviewImg(img)
     setPreviewPos({ x, y })
   }
@@ -693,14 +695,19 @@ export default function AdminDashboard() {
               animation: 'preview-appear 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards',
             }}
           >
-            <div className="relative w-80 aspect-[4/3]">
+            <div className="relative w-80 aspect-[4/3] bg-stone-950">
+              {!previewLoaded && (
+                <div className="absolute inset-0 skeleton-pulse bg-stone-800" />
+              )}
               <Image
+                key={previewImg.id}
                 src={`${previewImg.url}?width=640&quality=80`}
                 alt={previewImg.filename}
                 fill
                 unoptimized
-                className="object-contain bg-stone-950"
+                className={`object-contain transition-opacity duration-150 ${previewLoaded ? 'opacity-100' : 'opacity-0'}`}
                 sizes="320px"
+                onLoad={() => setPreviewLoaded(true)}
               />
             </div>
             <div className="px-3 py-2 flex items-center justify-between">
