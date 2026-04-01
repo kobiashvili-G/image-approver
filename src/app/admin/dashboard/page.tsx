@@ -40,6 +40,31 @@ type FilterType = 'all' | 'gte80' | 'gte60' | 'lt50' | 'none'
 type DateFilterType = 'all' | 'today' | 'week' | 'month'
 type SortField = 'approval' | 'date'
 type SortDir = 'asc' | 'desc'
+type UploadStatus = 'pending' | 'uploading' | 'done' | 'error'
+
+interface StagedFile {
+  id: string
+  file: File
+  previewUrl: string
+  status: UploadStatus
+  error?: string
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+function uploadStatusText(files: StagedFile[], uploading: boolean): string {
+  if (files.length === 0) return 'No files selected'
+  const done = files.filter((f) => f.status === 'done').length
+  const errors = files.filter((f) => f.status === 'error').length
+  const pending = files.filter((f) => f.status === 'pending').length
+  if (uploading) return `Uploading ${done + errors}/${files.length}...`
+  if (done > 0 || errors > 0) return `${done} uploaded${errors > 0 ? `, ${errors} failed` : ''}`
+  return `${pending} file(s) ready`
+}
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -80,8 +105,9 @@ export default function AdminDashboard() {
   const [sortField, setSortField] = useState<SortField>('approval')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showUpload, setShowUpload] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState('')
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
+  const isUploading = stagedFiles.some((f) => f.status === 'uploading')
+  const pendingCount = stagedFiles.filter((f) => f.status === 'pending').length
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Image preview state
@@ -183,17 +209,55 @@ export default function AdminDashboard() {
     }, 100)
   }
 
-  async function handleUpload(files: FileList | File[]) {
-    setUploading(true)
-    setUploadProgress(`Uploading ${files.length} file(s)...`)
-    const formData = new FormData()
-    Array.from(files).forEach((f) => formData.append('files', f))
-    const res = await fetch('/api/admin/upload', { method: 'POST', body: formData })
-    const data = await res.json()
-    setUploadProgress(`Uploaded ${data.uploaded} file(s)`)
-    setUploading(false)
+  function addFiles(files: FileList | File[]) {
+    const newFiles: StagedFile[] = Array.from(files)
+      .filter((f) => f.type.startsWith('image/'))
+      .map((f) => ({
+        id: crypto.randomUUID(),
+        file: f,
+        previewUrl: URL.createObjectURL(f),
+        status: 'pending' as UploadStatus,
+      }))
+    setStagedFiles((prev) => [...prev, ...newFiles])
+  }
+
+  function removeFile(id: string) {
+    const file = stagedFiles.find((f) => f.id === id)
+    if (file) URL.revokeObjectURL(file.previewUrl)
+    setStagedFiles((prev) => prev.filter((f) => f.id !== id))
+  }
+
+  function closeUploadModal() {
+    stagedFiles.forEach((f) => URL.revokeObjectURL(f.previewUrl))
+    setStagedFiles([])
     setShowUpload(false)
-    fetchImages()
+  }
+
+  function updateFileStatus(id: string, update: Partial<StagedFile>) {
+    setStagedFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...update } : f)))
+  }
+
+  async function uploadAll() {
+    const pending = stagedFiles.filter((f) => f.status === 'pending')
+    let anySuccess = false
+    for (const staged of pending) {
+      updateFileStatus(staged.id, { status: 'uploading' })
+      try {
+        const formData = new FormData()
+        formData.append('file', staged.file)
+        const res = await fetch('/api/admin/upload', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (data.success) {
+          updateFileStatus(staged.id, { status: 'done' })
+          anySuccess = true
+        } else {
+          updateFileStatus(staged.id, { status: 'error', error: data.error || 'Upload failed' })
+        }
+      } catch {
+        updateFileStatus(staged.id, { status: 'error', error: 'Network error' })
+      }
+    }
+    if (anySuccess) fetchImages()
   }
 
   async function handleBulkDelete() {
@@ -277,7 +341,7 @@ export default function AdminDashboard() {
     e.preventDefault()
     e.stopPropagation()
     if (e.dataTransfer.files.length > 0) {
-      handleUpload(e.dataTransfer.files)
+      addFiles(e.dataTransfer.files)
     }
   }
 
@@ -671,18 +735,27 @@ export default function AdminDashboard() {
       {/* Upload Modal */}
       {showUpload && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 w-full max-w-md animate-fade-up">
-            <h2 className="text-lg font-bold mb-4">Upload Images</h2>
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 w-full max-w-lg animate-fade-up">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Upload Images</h2>
+              <button
+                onClick={closeUploadModal}
+                className="text-stone-500 hover:text-stone-200 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
             <div
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              className="border-2 border-dashed border-stone-700 rounded-lg p-8 text-center mb-4 hover:border-amber-500 transition-colors"
+              onDragOver={isUploading ? undefined : handleDragOver}
+              onDrop={isUploading ? undefined : handleDrop}
+              className={`border-2 border-dashed rounded-lg p-6 text-center mb-4 transition-colors ${isUploading ? 'border-stone-800 opacity-50 cursor-not-allowed' : 'border-stone-700 hover:border-amber-500'}`}
             >
               <p className="text-stone-400 mb-2">Drag & drop images here</p>
-              <p className="text-stone-600 text-sm mb-4">or</p>
+              <p className="text-stone-600 text-sm mb-3">or</p>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all text-white"
+                disabled={isUploading}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all text-white disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, #dc5b0e, #eb7517)' }}
               >
                 Choose Files
@@ -693,16 +766,77 @@ export default function AdminDashboard() {
                 multiple
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => e.target.files && handleUpload(e.target.files)}
+                onChange={(e) => {
+                  if (e.target.files) addFiles(e.target.files)
+                  e.target.value = ''
+                }}
               />
             </div>
-            {uploading && <p className="text-amber-400 text-sm mb-4">{uploadProgress}</p>}
-            <button
-              onClick={() => setShowUpload(false)}
-              className="w-full px-4 py-2 border border-stone-700 rounded-lg text-stone-400 hover:text-stone-200 text-sm transition-colors"
-            >
-              Cancel
-            </button>
+
+            {stagedFiles.length > 0 && (
+              <div className="max-h-64 overflow-y-auto mb-4 border border-stone-800 rounded-lg divide-y divide-stone-800">
+                {stagedFiles.map((sf) => (
+                  <div key={sf.id} className="flex items-center gap-3 p-2.5">
+                    <img
+                      src={sf.previewUrl}
+                      alt={sf.file.name}
+                      className="w-10 h-10 rounded object-cover flex-shrink-0 bg-stone-800"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-stone-200 truncate">{sf.file.name}</p>
+                      <p className="text-xs text-stone-500">{formatFileSize(sf.file.size)}</p>
+                      {sf.status === 'error' && (
+                        <p className="text-xs text-red-400 truncate">{sf.error}</p>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 w-8 flex justify-center">
+                      {sf.status === 'pending' && !isUploading && (
+                        <button
+                          onClick={() => removeFile(sf.id)}
+                          className="text-stone-500 hover:text-red-400 transition-colors text-sm"
+                        >
+                          ✕
+                        </button>
+                      )}
+                      {sf.status === 'uploading' && (
+                        <svg className="w-4 h-4 text-amber-400 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-25" />
+                          <path d="M12 2a10 10 0 019.75 7.75" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                        </svg>
+                      )}
+                      {sf.status === 'done' && (
+                        <span className="text-emerald-400 text-sm">✓</span>
+                      )}
+                      {sf.status === 'error' && (
+                        <span className="text-red-400 text-sm">✗</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-stone-500">{uploadStatusText(stagedFiles, isUploading)}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={closeUploadModal}
+                  className="px-4 py-2 border border-stone-700 rounded-lg text-stone-400 hover:text-stone-200 text-sm transition-colors"
+                >
+                  Close
+                </button>
+                {pendingCount > 0 && (
+                  <button
+                    onClick={uploadAll}
+                    disabled={isUploading}
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all text-white disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #dc5b0e, #eb7517)' }}
+                  >
+                    {isUploading ? 'Uploading...' : `Upload ${pendingCount} file(s)`}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
