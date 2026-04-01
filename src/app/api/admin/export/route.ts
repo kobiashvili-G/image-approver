@@ -22,11 +22,11 @@ export async function GET() {
   const csvRows = rows.map(
     (r) => `"${esc(r.image)}","${esc(r.voter)}","${esc(r.vote)}","${esc(r.reason)}","${esc(r.date)}"`
   )
-  const csv = [header, ...csvRows].join('\n')
+  const csv = '\uFEFF' + [header, ...csvRows].join('\n')
 
   return new Response(csv, {
     headers: {
-      'Content-Type': 'text/csv',
+      'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename="votes-export.csv"',
     },
   })
