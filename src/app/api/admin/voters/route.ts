@@ -10,7 +10,7 @@ export async function GET() {
 
   const { data: votes } = await supabase
     .from('votes')
-    .select('voter_name, vote, image_id, images(filename, url)')
+    .select('voter_name, vote, reason, image_id, images(filename, url)')
     .order('voter_name')
 
   const allVotes = votes ?? []
@@ -33,15 +33,15 @@ export async function GET() {
   }))
 
   // Build disagreements: group votes by image, compute split
-  const imageVoteMap = new Map<string, { filename: string; url: string; votes: { voter: string; vote: string }[] }>()
+  const imageVoteMap = new Map<string, { filename: string; url: string; votes: { voter: string; vote: string; reason: string | null }[] }>()
   for (const v of allVotes) {
     const img = v.images as any
     const entry = imageVoteMap.get(v.image_id) ?? {
       filename: img?.filename ?? 'unknown',
       url: img?.url ?? '',
-      votes: [] as { voter: string; vote: string }[],
+      votes: [] as { voter: string; vote: string; reason: string | null }[],
     }
-    entry.votes.push({ voter: v.voter_name, vote: v.vote })
+    entry.votes.push({ voter: v.voter_name, vote: v.vote, reason: v.reason ?? null })
     imageVoteMap.set(v.image_id, entry)
   }
 

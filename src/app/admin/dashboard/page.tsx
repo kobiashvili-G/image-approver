@@ -31,7 +31,7 @@ interface Disagreement {
   rejects: number
   total: number
   disagreementScore: number
-  votes: { voter: string; vote: string }[]
+  votes: { voter: string; vote: string; reason: string | null }[]
 }
 
 type TabType = 'images' | 'voters' | 'disagreements'
@@ -622,13 +622,19 @@ export default function AdminDashboard() {
                         {d.votes.map((vote, i) => (
                           <span
                             key={i}
-                            className={`text-xs px-2 py-0.5 rounded ${
+                            className={`text-xs px-2 py-0.5 rounded max-w-xs ${
                               vote.vote === 'approve'
                                 ? 'bg-emerald-900/40 text-emerald-400'
                                 : 'bg-red-900/40 text-red-400'
                             }`}
+                            title={vote.reason ?? undefined}
                           >
                             {vote.voter} {vote.vote === 'approve' ? '✓' : '✗'}
+                            {vote.reason && (
+                              <span className="text-red-300/70 ml-1">
+                                — &ldquo;{vote.reason.length > 40 ? vote.reason.slice(0, 40) + '…' : vote.reason}&rdquo;
+                              </span>
+                            )}
                           </span>
                         ))}
                       </div>

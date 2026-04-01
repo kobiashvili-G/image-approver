@@ -4,7 +4,7 @@ import { getNextImages } from '@/lib/queries/images'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { image_id, voter_name, vote } = body
+  const { image_id, voter_name, vote, reason } = body
 
   if (!image_id || !voter_name || !vote) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -14,12 +14,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Vote must be approve or reject' }, { status: 400 })
   }
 
+  const trimmedReason = vote === 'reject' ? (reason ?? '').trim() : null
+
+  if (vote === 'reject' && !trimmedReason) {
+    return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 })
+  }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase.from('votes').insert({
     image_id,
     voter_name: voter_name.trim().toLowerCase(),
     vote,
+    reason: trimmedReason,
   })
 
   if (error) {
