@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const { data: votes } = await supabase
     .from('votes')
     .select('vote')
-    .eq('voter_name', voter)
+    .eq('voter_name', voter.toLowerCase())
 
   const all = votes ?? []
   const approved = all.filter((v) => v.vote === 'approve').length

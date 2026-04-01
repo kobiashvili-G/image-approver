@@ -11,7 +11,7 @@ export default function LoginPage() {
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
-    localStorage.setItem('voterName', trimmed)
+    localStorage.setItem('voterName', trimmed.toLowerCase())
     router.push('/vote')
   }
 

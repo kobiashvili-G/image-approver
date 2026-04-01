@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createAdminClient()
-  const result = await getNextImages(supabase, voter)
+  const result = await getNextImages(supabase, voter.toLowerCase())
 
   if ('error' in result) {
     return NextResponse.json({ error: result.error, detail: result.detail }, { status: 500 })

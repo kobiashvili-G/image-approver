@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   const { error } = await supabase.from('votes').insert({
     image_id,
-    voter_name: voter_name.trim(),
+    voter_name: voter_name.trim().toLowerCase(),
     vote,
   })
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Return next images so the client doesn't need a separate GET
-  const result = await getNextImages(supabase, voter_name.trim())
+  const result = await getNextImages(supabase, voter_name.trim().toLowerCase())
 
   if ('error' in result) {
     // Vote succeeded but fetching next images failed — still return success
