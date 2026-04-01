@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface AdminImage {
   id: string
@@ -452,6 +453,7 @@ export default function AdminDashboard() {
                   >
                     Approval %{sortIndicator('approval')}
                   </th>
+                  <th className="p-3 text-center">Feedback</th>
                   <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -505,6 +507,25 @@ export default function AdminDashboard() {
                         </span>
                       ) : (
                         <span className="text-stone-600">—</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">
+                      {img.total > 0 ? (
+                        <Link
+                          href={`/admin/dashboard/image/${img.id}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all hover:bg-stone-800 text-stone-400 hover:text-amber-400"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5zm14-1a1 1 0 00-1 1v6a1 1 0 001 1h1v2l2-2h1a1 1 0 001-1V5a1 1 0 00-1-1h-4z" clipRule="evenodd" />
+                          </svg>
+                          {img.rejected > 0 ? (
+                            <span>{img.rejected} reason{img.rejected !== 1 ? 's' : ''}</span>
+                          ) : (
+                            <span>View</span>
+                          )}
+                        </Link>
+                      ) : (
+                        <span className="text-stone-700 text-xs">—</span>
                       )}
                     </td>
                     <td className="p-3 text-right space-x-2">
