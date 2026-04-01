@@ -120,11 +120,15 @@ export default function VotePage() {
           headers: { 'Content-Type': 'application/json' },
           body: voteBody,
         })
-        if (!res.ok) throw new Error('Vote failed')
         const data = await res.json()
-        if (data.nextImage) setNextImage(data.nextImage)
-        if (data.remaining != null) setRemaining(data.remaining)
-        if (data.total != null) setTotal(data.total)
+        if (res.ok || res.status === 409) {
+          // Vote succeeded or was a duplicate — either way, advance
+          if (data.nextImage) setNextImage(data.nextImage)
+          if (data.remaining != null) setRemaining(data.remaining)
+          if (data.total != null) setTotal(data.total)
+        } else {
+          throw new Error('Vote failed')
+        }
       } catch {
         setImage(prevImage)
         setNextImage(prevNextImage)
@@ -141,8 +145,13 @@ export default function VotePage() {
           headers: { 'Content-Type': 'application/json' },
           body: voteBody,
         })
-        if (!res.ok) throw new Error('Vote failed')
-        router.push('/done')
+        if (!res.ok && res.status !== 409) throw new Error('Vote failed')
+        // Vote succeeded or duplicate — either way, move on
+        if (voterName) {
+          await fetchNextImage(voterName)
+        } else {
+          router.push('/done')
+        }
         return
       } catch {
         setCardAnim('enter')

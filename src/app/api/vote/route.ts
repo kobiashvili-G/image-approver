@@ -31,7 +31,12 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     if (error.code === '23505') {
-      return NextResponse.json({ error: 'Already voted on this image' }, { status: 409 })
+      // Duplicate vote — still return next images so client can advance
+      const nextResult = await getNextImages(supabase, voter_name.trim().toLowerCase())
+      if ('error' in nextResult) {
+        return NextResponse.json({ error: 'Already voted on this image' }, { status: 409 })
+      }
+      return NextResponse.json({ error: 'Already voted on this image', ...nextResult }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

@@ -17,7 +17,7 @@ export async function getNextImages(supabase: SupabaseClient, voterName: string)
     : null
 
   let countQuery = supabase.from('images').select('id', { count: 'exact', head: true })
-  let imagesQuery = supabase.from('images').select('id, url').limit(2)
+  let imagesQuery = supabase.from('images').select('id, url').order('created_at', { ascending: true }).limit(2)
   if (excludeFilter) {
     countQuery = countQuery.not('id', 'in', excludeFilter)
     imagesQuery = imagesQuery.not('id', 'in', excludeFilter)
