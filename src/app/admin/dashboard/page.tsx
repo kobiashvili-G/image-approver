@@ -7,6 +7,7 @@ interface AdminImage {
   id: string
   filename: string
   url: string
+  created_at: string
   approved: number
   rejected: number
   total: number
@@ -35,6 +36,37 @@ interface Disagreement {
 
 type TabType = 'images' | 'voters' | 'disagreements'
 type FilterType = 'all' | 'gte80' | 'gte60' | 'lt50' | 'none'
+type DateFilterType = 'all' | 'today' | 'week' | 'month'
+type SortField = 'approval' | 'date'
+type SortDir = 'asc' | 'desc'
+
+function formatDate(iso: string) {
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const diffDays = Math.floor(diffMs / 86400000)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays}d ago`
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function isWithinDateRange(iso: string, range: DateFilterType): boolean {
+  if (range === 'all') return true
+  const d = new Date(iso)
+  const now = new Date()
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (range === 'today') return d >= startOfDay
+  if (range === 'week') {
+    const weekAgo = new Date(startOfDay)
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    return d >= weekAgo
+  }
+  // month
+  const monthAgo = new Date(startOfDay)
+  monthAgo.setMonth(monthAgo.getMonth() - 1)
+  return d >= monthAgo
+}
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<TabType>('images')
@@ -42,12 +74,19 @@ export default function AdminDashboard() {
   const [voters, setVoters] = useState<Voter[]>([])
   const [disagreements, setDisagreements] = useState<Disagreement[]>([])
   const [filter, setFilter] = useState<FilterType>('all')
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('all')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [sortAsc, setSortAsc] = useState(false)
+  const [sortField, setSortField] = useState<SortField>('approval')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Image preview state
+  const [previewImg, setPreviewImg] = useState<AdminImage | null>(null)
+  const [previewPos, setPreviewPos] = useState<{ x: number; y: number } | null>(null)
+  const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchImages = useCallback(async () => {
     const res = await fetch('/api/admin/images')
@@ -68,21 +107,42 @@ export default function AdminDashboard() {
   }, [fetchImages, fetchVoterData])
 
   const filtered = images.filter((img) => {
-    if (filter === 'all') return true
-    if (filter === 'none') return img.total === 0
-    if (filter === 'gte80') return img.approvalPct !== null && img.approvalPct >= 80
-    if (filter === 'gte60') return img.approvalPct !== null && img.approvalPct >= 60
-    if (filter === 'lt50') return img.approvalPct !== null && img.approvalPct < 50
+    // Approval filter
+    if (filter === 'none' && img.total !== 0) return false
+    if (filter === 'gte80' && (img.approvalPct === null || img.approvalPct < 80)) return false
+    if (filter === 'gte60' && (img.approvalPct === null || img.approvalPct < 60)) return false
+    if (filter === 'lt50' && (img.approvalPct === null || img.approvalPct >= 50)) return false
+    // Date filter
+    if (!isWithinDateRange(img.created_at, dateFilter)) return false
     return true
   })
 
   const sorted = [...filtered].sort((a, b) => {
-    const aVal = a.approvalPct ?? -1
-    const bVal = b.approvalPct ?? -1
-    return sortAsc ? aVal - bVal : bVal - aVal
+    if (sortField === 'approval') {
+      const aVal = a.approvalPct ?? -1
+      const bVal = b.approvalPct ?? -1
+      return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+    }
+    const aDate = new Date(a.created_at).getTime()
+    const bDate = new Date(b.created_at).getTime()
+    return sortDir === 'asc' ? aDate - bDate : bDate - aDate
   })
 
   const totalVotes = images.reduce((sum, img) => sum + img.total, 0)
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir('desc')
+    }
+  }
+
+  function sortIndicator(field: SortField) {
+    if (sortField !== field) return ''
+    return sortDir === 'asc' ? ' ↑' : ' ↓'
+  }
 
   function toggleSelect(id: string) {
     const next = new Set(selected)
@@ -97,6 +157,27 @@ export default function AdminDashboard() {
     } else {
       setSelected(new Set(sorted.map((img) => img.id)))
     }
+  }
+
+  function handleThumbnailEnter(img: AdminImage, e: React.MouseEvent) {
+    if (previewTimeout.current) clearTimeout(previewTimeout.current)
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const viewportH = window.innerHeight
+    // Position preview to the right of thumbnail, vertically centered
+    const x = rect.right + 12
+    // If too close to bottom, show above
+    const y = rect.top + rect.height / 2 > viewportH / 2
+      ? rect.top - 200
+      : rect.top - 40
+    setPreviewImg(img)
+    setPreviewPos({ x, y })
+  }
+
+  function handleThumbnailLeave() {
+    previewTimeout.current = setTimeout(() => {
+      setPreviewImg(null)
+      setPreviewPos(null)
+    }, 100)
   }
 
   async function handleUpload(files: FileList | File[]) {
@@ -205,6 +286,13 @@ export default function AdminDashboard() {
     { key: 'none', label: 'No votes' },
   ]
 
+  const dateFilters: { key: DateFilterType; label: string }[] = [
+    { key: 'all', label: 'Any time' },
+    { key: 'today', label: 'Today' },
+    { key: 'week', label: 'This week' },
+    { key: 'month', label: 'This month' },
+  ]
+
   const tabs: { key: TabType; label: string; count: number }[] = [
     { key: 'images', label: 'Images', count: images.length },
     { key: 'voters', label: 'Voters', count: voters.length },
@@ -263,8 +351,8 @@ export default function AdminDashboard() {
       {tab === 'images' && (
         <>
           {/* Filter Bar */}
-          <div className="flex items-center gap-3 mb-4 p-3 bg-stone-900 rounded-lg">
-            <span className="text-stone-500 text-xs uppercase tracking-wider">Filter:</span>
+          <div className="flex items-center gap-3 mb-4 p-3 bg-stone-900 rounded-lg flex-wrap">
+            <span className="text-stone-500 text-xs uppercase tracking-wider">Approval:</span>
             <div className="flex gap-2">
               {filters.map((f) => (
                 <button
@@ -280,6 +368,26 @@ export default function AdminDashboard() {
                 </button>
               ))}
             </div>
+
+            <div className="w-px h-5 bg-stone-700 mx-1" />
+
+            <span className="text-stone-500 text-xs uppercase tracking-wider">Added:</span>
+            <div className="flex gap-2">
+              {dateFilters.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setDateFilter(f.key)}
+                  className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                    dateFilter === f.key
+                      ? 'bg-stone-700 text-stone-100'
+                      : 'border border-stone-700 text-stone-500 hover:text-stone-300'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
             <div className="flex-1" />
             <span className="text-stone-500 text-xs">
               Showing {sorted.length} of {images.length}
@@ -327,14 +435,20 @@ export default function AdminDashboard() {
                   </th>
                   <th className="p-3 text-left">Image</th>
                   <th className="p-3 text-left">Filename</th>
+                  <th
+                    className="p-3 text-left cursor-pointer hover:text-stone-300 select-none"
+                    onClick={() => handleSort('date')}
+                  >
+                    Added{sortIndicator('date')}
+                  </th>
                   <th className="p-3 text-center">Approved</th>
                   <th className="p-3 text-center">Rejected</th>
                   <th className="p-3 text-center">Total</th>
                   <th
-                    className="p-3 text-center cursor-pointer hover:text-stone-300"
-                    onClick={() => setSortAsc(!sortAsc)}
+                    className="p-3 text-center cursor-pointer hover:text-stone-300 select-none"
+                    onClick={() => handleSort('approval')}
                   >
-                    Approval % {sortAsc ? '↑' : '↓'}
+                    Approval %{sortIndicator('approval')}
                   </th>
                   <th className="p-3 text-right">Actions</th>
                 </tr>
@@ -356,7 +470,11 @@ export default function AdminDashboard() {
                       />
                     </td>
                     <td className="p-3">
-                      <div className="w-12 h-9 relative rounded overflow-hidden bg-stone-800">
+                      <div
+                        className="w-12 h-9 relative rounded overflow-hidden bg-stone-800 cursor-pointer ring-1 ring-stone-700 hover:ring-amber-500/50 transition-all"
+                        onMouseEnter={(e) => handleThumbnailEnter(img, e)}
+                        onMouseLeave={handleThumbnailLeave}
+                      >
                         <Image
                           src={`${img.url}?width=96&quality=60`}
                           alt={img.filename}
@@ -368,6 +486,7 @@ export default function AdminDashboard() {
                       </div>
                     </td>
                     <td className="p-3 text-stone-300">{img.filename}</td>
+                    <td className="p-3 text-stone-500 text-xs">{formatDate(img.created_at)}</td>
                     <td className="p-3 text-center text-emerald-500 font-semibold">{img.approved}</td>
                     <td className="p-3 text-center text-red-500 font-semibold">{img.rejected}</td>
                     <td className="p-3 text-center">{img.total}</td>
@@ -558,6 +677,62 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Image Preview Popover */}
+      {previewImg && previewPos && (
+        <div
+          className="fixed z-50 pointer-events-none"
+          style={{
+            left: previewPos.x,
+            top: previewPos.y,
+          }}
+        >
+          <div
+            className="w-80 rounded-xl overflow-hidden border border-stone-700 bg-stone-900 shadow-2xl shadow-black/60"
+            style={{
+              animation: 'preview-appear 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            }}
+          >
+            <div className="relative w-80 aspect-[4/3]">
+              <Image
+                src={`${previewImg.url}?width=640&quality=80`}
+                alt={previewImg.filename}
+                fill
+                unoptimized
+                className="object-contain bg-stone-950"
+                sizes="320px"
+              />
+            </div>
+            <div className="px-3 py-2 flex items-center justify-between">
+              <span className="text-stone-300 text-xs truncate">{previewImg.filename}</span>
+              {previewImg.approvalPct !== null && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs ml-2 flex-shrink-0 ${
+                    previewImg.approvalPct >= 60
+                      ? 'bg-emerald-900/40 text-emerald-400'
+                      : 'bg-red-900/40 text-red-400'
+                  }`}
+                >
+                  {previewImg.approvalPct}%
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes preview-appear {
+          0% {
+            opacity: 0;
+            transform: scale(0.9) translateY(4px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+      `}</style>
     </main>
   )
 }
