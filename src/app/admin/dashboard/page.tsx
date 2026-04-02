@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { FileUpload } from '@ark-ui/react/file-upload'
+import { Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 
 interface AdminImage {
   id: string
@@ -108,7 +110,7 @@ export default function AdminDashboard() {
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const isUploading = stagedFiles.some((f) => f.status === 'uploading')
   const pendingCount = stagedFiles.filter((f) => f.status === 'pending').length
-  const fileInputRef = useRef<HTMLInputElement>(null)
+
 
   // Image preview state
   const [previewImg, setPreviewImg] = useState<AdminImage | null>(null)
@@ -330,19 +332,6 @@ export default function AdminDashboard() {
     })
     fetchImages()
     fetchVoterData()
-  }
-
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.dataTransfer.files.length > 0) {
-      addFiles(e.dataTransfer.files)
-    }
   }
 
   const filters: { key: FilterType; label: string }[] = [
@@ -735,88 +724,103 @@ export default function AdminDashboard() {
       {/* Upload Modal */}
       {showUpload && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 w-full max-w-lg animate-fade-up">
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 w-full max-w-2xl animate-fade-up">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Upload Images</h2>
               <button
                 onClick={closeUploadModal}
                 className="text-stone-500 hover:text-stone-200 transition-colors"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div
-              onDragOver={isUploading ? undefined : handleDragOver}
-              onDrop={isUploading ? undefined : handleDrop}
-              className={`border-2 border-dashed rounded-lg p-6 text-center mb-4 transition-colors ${isUploading ? 'border-stone-800 opacity-50 cursor-not-allowed' : 'border-stone-700 hover:border-amber-500'}`}
+
+            <FileUpload.Root
+              accept="image/*"
+              maxFiles={100}
+              disabled={isUploading}
+              onFileChange={(e) => {
+                if (e.acceptedFiles.length > 0) addFiles(e.acceptedFiles)
+              }}
             >
-              <p className="text-stone-400 mb-2">Drag & drop images here</p>
-              <p className="text-stone-600 text-sm mb-3">or</p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all text-white disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #dc5b0e, #eb7517)' }}
-              >
-                Choose Files
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files) addFiles(e.target.files)
-                  e.target.value = ''
-                }}
-              />
-            </div>
+              <div className="border-2 border-dashed border-stone-700 rounded-xl p-6 bg-stone-800/50 min-h-52">
+                {stagedFiles.length > 0 ? (
+                  <>
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-medium text-stone-300">
+                        {stagedFiles.length} file(s) selected
+                      </h3>
+                      <FileUpload.Trigger className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-stone-600 text-stone-300 hover:bg-stone-700 hover:text-stone-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <Upload className="w-3 h-3" />
+                        Add more
+                      </FileUpload.Trigger>
+                    </div>
 
-            {stagedFiles.length > 0 && (
-              <div className="max-h-64 overflow-y-auto mb-4 border border-stone-800 rounded-lg divide-y divide-stone-800">
-                {stagedFiles.map((sf) => (
-                  <div key={sf.id} className="flex items-center gap-3 p-2.5">
-                    <img
-                      src={sf.previewUrl}
-                      alt={sf.file.name}
-                      className="w-10 h-10 rounded object-cover flex-shrink-0 bg-stone-800"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-stone-200 truncate">{sf.file.name}</p>
-                      <p className="text-xs text-stone-500">{formatFileSize(sf.file.size)}</p>
-                      {sf.status === 'error' && (
-                        <p className="text-xs text-red-400 truncate">{sf.error}</p>
-                      )}
+                    {/* Image Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+                      {stagedFiles.map((sf) => (
+                        <div key={sf.id} className="relative group aspect-square rounded-lg overflow-hidden bg-stone-800">
+                          <img
+                            src={sf.previewUrl}
+                            alt={sf.file.name}
+                            className="w-full h-full object-cover"
+                          />
+
+                          {/* Status overlay */}
+                          {sf.status === 'uploading' && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+                            </div>
+                          )}
+                          {sf.status === 'done' && (
+                            <div className="absolute inset-0 bg-emerald-900/30 flex items-center justify-center">
+                              <CheckCircle className="w-6 h-6 text-emerald-400" />
+                            </div>
+                          )}
+                          {sf.status === 'error' && (
+                            <div className="absolute inset-0 bg-red-900/30 flex flex-col items-center justify-center p-2">
+                              <AlertCircle className="w-6 h-6 text-red-400 mb-1" />
+                              <span className="text-[10px] text-red-300 text-center truncate w-full">{sf.error}</span>
+                            </div>
+                          )}
+
+                          {/* Remove button */}
+                          {sf.status === 'pending' && !isUploading && (
+                            <button
+                              onClick={() => removeFile(sf.id)}
+                              className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black transition-opacity"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+
+                          {/* Filename label */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 pt-6">
+                            <p className="text-[11px] text-stone-300 truncate">{sf.file.name}</p>
+                            <p className="text-[10px] text-stone-500">{formatFileSize(sf.file.size)}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex-shrink-0 w-8 flex justify-center">
-                      {sf.status === 'pending' && !isUploading && (
-                        <button
-                          onClick={() => removeFile(sf.id)}
-                          className="text-stone-500 hover:text-red-400 transition-colors text-sm"
-                        >
-                          ✕
-                        </button>
-                      )}
-                      {sf.status === 'uploading' && (
-                        <svg className="w-4 h-4 text-amber-400 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-25" />
-                          <path d="M12 2a10 10 0 019.75 7.75" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                        </svg>
-                      )}
-                      {sf.status === 'done' && (
-                        <span className="text-emerald-400 text-sm">✓</span>
-                      )}
-                      {sf.status === 'error' && (
-                        <span className="text-red-400 text-sm">✗</span>
-                      )}
+                  </>
+                ) : (
+                  /* Empty state — dropzone */
+                  <FileUpload.Dropzone className="flex flex-col items-center justify-center py-10 text-center cursor-pointer rounded-lg hover:border-amber-500/50 transition-colors">
+                    <div className="w-12 h-12 rounded-full border border-stone-600 bg-stone-800 flex items-center justify-center mb-4">
+                      <Upload className="w-5 h-5 text-stone-500" />
                     </div>
-                  </div>
-                ))}
+                    <p className="text-stone-400 text-sm mb-1">Click to upload or drag and drop</p>
+                    <p className="text-stone-600 text-xs">PNG, JPG, WEBP and other image formats</p>
+                  </FileUpload.Dropzone>
+                )}
               </div>
-            )}
 
-            <div className="flex items-center justify-between gap-3">
+              <FileUpload.HiddenInput />
+            </FileUpload.Root>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 mt-4">
               <p className="text-xs text-stone-500">{uploadStatusText(stagedFiles, isUploading)}</p>
               <div className="flex gap-2">
                 <button
@@ -829,7 +833,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={uploadAll}
                     disabled={isUploading}
-                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all text-white disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all text-white disabled:opacity-50 hover:shadow-lg hover:shadow-amber-900/20"
                     style={{ background: 'linear-gradient(135deg, #dc5b0e, #eb7517)' }}
                   >
                     {isUploading ? 'Uploading...' : `Upload ${pendingCount} file(s)`}
