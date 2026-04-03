@@ -8,6 +8,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'image_ids required' }, { status: 400 })
   }
 
+  if (image_ids.length > 500) {
+    return NextResponse.json({ error: 'Maximum 500 images per request' }, { status: 400 })
+  }
+
   const supabase = createAdminClient()
 
   const { count } = await supabase

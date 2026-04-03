@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import JSZip from 'jszip'
+import path from 'path'
 
 export async function POST(request: NextRequest) {
   const { image_ids } = await request.json()
 
   if (!image_ids || !Array.isArray(image_ids) || image_ids.length === 0) {
     return NextResponse.json({ error: 'image_ids required' }, { status: 400 })
+  }
+
+  if (image_ids.length > 100) {
+    return NextResponse.json({ error: 'Maximum 100 images per download' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
@@ -34,7 +39,8 @@ export async function POST(request: NextRequest) {
   for (const dl of downloads) {
     if (dl) {
       const buffer = await dl.data.arrayBuffer()
-      zip.file(dl.filename, buffer)
+      const safeName = path.basename(dl.filename).replace(/\0/g, '')
+      zip.file(safeName || 'image', buffer)
     }
   }
 

@@ -12,14 +12,16 @@ export default function AdminLoginPage() {
     e.preventDefault()
     setError('')
 
-    document.cookie = `admin_session=${password}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
 
-    const res = await fetch('/api/admin/images')
     if (res.ok) {
       router.push('/admin/dashboard')
     } else {
       setError('Wrong password')
-      document.cookie = 'admin_session=; path=/; max-age=0'
     }
   }
 
