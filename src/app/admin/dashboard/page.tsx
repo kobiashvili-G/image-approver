@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { FileUpload } from '@ark-ui/react/file-upload'
 import { Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { DownloadCard, type DownloadStatus } from '@/components/ui/download-card'
 
 interface AdminImage {
   id: string
@@ -107,6 +108,7 @@ export default function AdminDashboard() {
   const [sortField, setSortField] = useState<SortField>('approval')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showUpload, setShowUpload] = useState(false)
+  const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle')
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const isUploading = stagedFiles.some((f) => f.status === 'uploading')
   const pendingCount = stagedFiles.filter((f) => f.status === 'pending').length
@@ -287,18 +289,26 @@ export default function AdminDashboard() {
   }
 
   async function handleBulkDownload() {
-    const res = await fetch('/api/admin/download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_ids: Array.from(selected) }),
-    })
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'images.zip'
-    a.click()
-    URL.revokeObjectURL(url)
+    if (downloadStatus !== 'idle') return
+    setDownloadStatus('loading')
+    try {
+      const res = await fetch('/api/admin/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_ids: Array.from(selected) }),
+      })
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'images.zip'
+      a.click()
+      URL.revokeObjectURL(url)
+      setDownloadStatus('success')
+      setTimeout(() => setDownloadStatus('idle'), 3000)
+    } catch {
+      setDownloadStatus('idle')
+    }
   }
 
   async function handleExportCsv() {
@@ -452,27 +462,29 @@ export default function AdminDashboard() {
 
           {/* Bulk Actions */}
           {selected.size > 0 && (
-            <div className="flex items-center gap-3 mb-3 p-3 bg-amber-950/30 border border-amber-500/20 rounded-lg">
-              <span className="text-amber-200 text-sm">{selected.size} selected</span>
-              <button
-                onClick={handleBulkDownload}
-                className="px-3 py-1 rounded-lg text-white text-xs font-medium"
-                style={{ background: 'linear-gradient(135deg, #dc5b0e, #eb7517)' }}
-              >
-                Download
-              </button>
-              <button
-                onClick={handleBulkReset}
-                className="px-3 py-1 rounded-lg border border-red-500/30 text-red-400 text-xs"
-              >
-                Reset Votes
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                className="px-3 py-1 rounded-lg border border-red-500/30 text-red-400 text-xs"
-              >
-                Delete
-              </button>
+            <div className="mb-3 p-4 bg-amber-950/30 border border-amber-500/20 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-amber-200 text-sm font-medium">{selected.size} selected</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleBulkReset}
+                    className="px-3 py-1 rounded-lg border border-red-500/30 text-red-400 text-xs hover:bg-red-950/30 transition-colors"
+                  >
+                    Reset Votes
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="px-3 py-1 rounded-lg border border-red-500/30 text-red-400 text-xs hover:bg-red-950/30 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              <DownloadCard
+                count={selected.size}
+                status={downloadStatus}
+                onDownload={handleBulkDownload}
+              />
             </div>
           )}
 
