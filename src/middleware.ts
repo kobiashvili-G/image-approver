@@ -1,15 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 
-function verifySessionToken(token: string): boolean {
-  const secret = process.env.ADMIN_PASSWORD ?? ''
-  const expected = crypto.createHmac('sha256', secret).update('admin_session_v1').digest('hex')
-  const a = Buffer.from(token)
-  const b = Buffer.from(expected)
-  return a.length === b.length && crypto.timingSafeEqual(a, b)
+async function computeHmac(secret: string, message: string): Promise<string> {
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message))
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
-export function middleware(request: NextRequest) {
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return result === 0
+}
+
+async function verifySessionToken(token: string): Promise<boolean> {
+  const secret = process.env.ADMIN_PASSWORD ?? ''
+  const expected = await computeHmac(secret, 'admin_session_v1')
+  return timingSafeEqual(token, expected)
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow login/logout without auth
@@ -19,7 +40,7 @@ export function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/admin/dashboard') || pathname.startsWith('/api/admin')) {
     const session = request.cookies.get('admin_session')
-    if (!session?.value || !verifySessionToken(session.value)) {
+    if (!session?.value || !(await verifySessionToken(session.value))) {
       if (pathname.startsWith('/api/admin')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
